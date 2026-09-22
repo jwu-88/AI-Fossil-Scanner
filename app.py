@@ -12,6 +12,46 @@ from collections import Counter
 from gradio.themes.base import Base
 from gradio.themes.utils import colors
 
+CUSTOM_CSS = """
+    /* Global dark override */
+    body, .gradio-container {
+        background:
+            radial-gradient(ellipse 80% 50% at 10% 0%,   rgba(59,130,246,0.07) 0%, transparent 60%),
+            radial-gradient(ellipse 60% 40% at 90% 100%, rgba(139,92,246,0.07) 0%, transparent 60%),
+            radial-gradient(ellipse 50% 60% at 50% 50%,  rgba(200,146,42,0.04) 0%, transparent 70%),
+            #0a0a0a !important;
+        background-attachment: fixed !important;
+    }
+    .tabs > .tab-nav { border-bottom: 1px solid #2a2518 !important; }
+    .tabs > .tab-nav > button {
+        font-family: 'Cinzel', serif !important;
+        font-size: 0.78rem !important;
+        letter-spacing: 0.06em !important;
+        color: #666 !important;
+        border-radius: 0 !important;
+        padding: 10px 20px !important;
+        transition: color 0.2s !important;
+    }
+    .tabs > .tab-nav > button.selected {
+        color: #c8922a !important;
+        border-bottom: 2px solid #c8922a !important;
+        background: transparent !important;
+    }
+    .tabs > .tab-nav > button:hover { color: #e0c080 !important; }
+    .block { border-radius: 14px !important; border-color: #2a2518 !important; }
+    label { color: #888 !important; font-size: 0.75rem !important; letter-spacing: 0.05em !important; text-transform: uppercase !important; }
+    textarea, input[type=text], input[type=number] {
+        background: #111 !important;
+        border-color: #2a2518 !important;
+        color: #C5C7C4 !important;
+        border-radius: 10px !important;
+    }
+    .svelte-1ipelgc { color: #e0c080 !important; }
+    button.primary { border-radius: 10px !important; font-weight: 700 !important; letter-spacing: 0.04em !important; }
+    button.secondary { background: #1a1a1a !important; border-color: #333 !important; color: #888 !important; border-radius: 10px !important; }
+    button.stop { background: #1a0a0a !important; border-color: #ef444433 !important; color: #ef4444 !important; border-radius: 10px !important; }
+"""
+
 custom_theme = Base(
     primary_hue=colors.amber,
     secondary_hue=colors.stone,
@@ -664,10 +704,16 @@ HEADER_HTML = """
     </div>
 </div>
 
-<script>
+"""
+
+# The particle <script> can't live inside gr.HTML (browsers don't run scripts
+# injected via innerHTML), so it's passed to gr.HTML(js_on_load=...) instead,
+# which Gradio executes when the component renders.
+HEADER_JS = """
 (function() {
     const canvas = document.getElementById('particle-canvas');
     if (!canvas) return;
+    if (window.__fossilParticlesRaf) cancelAnimationFrame(window.__fossilParticlesRaf);
     const ctx = canvas.getContext('2d');
 
     function resize() {
@@ -675,7 +721,7 @@ HEADER_HTML = """
         canvas.height = canvas.offsetHeight;
     }
     resize();
-    window.addEventListener('resize', resize);
+    window.onresize = resize;
 
     // Particles
     const particles = [];
@@ -737,11 +783,10 @@ HEADER_HTML = """
             if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
         });
 
-        requestAnimationFrame(draw);
+        window.__fossilParticlesRaf = requestAnimationFrame(draw);
     }
     draw();
 })();
-</script>
 """
 
 
@@ -790,7 +835,7 @@ with gr.Blocks(
     title="Fossil Scanner"
 ) as app:
 
-    gr.HTML(HEADER_HTML)
+    gr.HTML(HEADER_HTML, js_on_load=HEADER_JS)
 
     with gr.Tabs():
         with gr.Tab("⬡ Scanner"):
@@ -869,42 +914,6 @@ with gr.Blocks(
         scan_btn.click(fn=lambda: do_refresh(""), outputs=[stats_display, entries_html])
 
 if __name__ == "__main__":
-    app.launch(show_error=True, share=False, ssr = False, theme = custom_theme, css="""
-    /* Global dark override */
-    body, .gradio-container {
-        background:
-            radial-gradient(ellipse 80% 50% at 10% 0%,   rgba(59,130,246,0.07) 0%, transparent 60%),
-            radial-gradient(ellipse 60% 40% at 90% 100%, rgba(139,92,246,0.07) 0%, transparent 60%),
-            radial-gradient(ellipse 50% 60% at 50% 50%,  rgba(200,146,42,0.04) 0%, transparent 70%),
-            #0a0a0a !important;
-        background-attachment: fixed !important;
-    }
-    .tabs > .tab-nav { border-bottom: 1px solid #2a2518 !important; }
-    .tabs > .tab-nav > button {
-        font-family: 'Cinzel', serif !important;
-        font-size: 0.78rem !important;
-        letter-spacing: 0.06em !important;
-        color: #666 !important;
-        border-radius: 0 !important;
-        padding: 10px 20px !important;
-        transition: color 0.2s !important;
-    }
-    .tabs > .tab-nav > button.selected {
-        color: #c8922a !important;
-        border-bottom: 2px solid #c8922a !important;
-        background: transparent !important;
-    }
-    .tabs > .tab-nav > button:hover { color: #e0c080 !important; }
-    .block { border-radius: 14px !important; border-color: #2a2518 !important; }
-    label { color: #888 !important; font-size: 0.75rem !important; letter-spacing: 0.05em !important; text-transform: uppercase !important; }
-    textarea, input[type=text], input[type=number] {
-        background: #111 !important;
-        border-color: #2a2518 !important;
-        color: #C5C7C4 !important;
-        border-radius: 10px !important;
-    }
-    .svelte-1ipelgc { color: #e0c080 !important; }
-    button.primary { border-radius: 10px !important; font-weight: 700 !important; letter-spacing: 0.04em !important; }
-    button.secondary { background: #1a1a1a !important; border-color: #333 !important; color: #888 !important; border-radius: 10px !important; }
-    button.stop { background: #1a0a0a !important; border-color: #ef444433 !important; color: #ef4444 !important; border-radius: 10px !important; }
-    """)
+    # ssr_mode=False avoids the experimental SSR path (and its teardown log
+    # noise) on Hugging Face Spaces. In Gradio 6, theme/css are launch() args.
+    app.launch(show_error=True, share=False, ssr_mode=False, theme=custom_theme, css=CUSTOM_CSS)
