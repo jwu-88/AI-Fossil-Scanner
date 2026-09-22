@@ -1,3 +1,36 @@
+import sys
+
+
+def _quiet_asyncio_teardown_hook(unraisable):
+    # On some platforms (notably Linux containers) Python's garbage collector
+    # finalizes leftover asyncio event loops after their fds are closed, and
+    # BaseEventLoop.__del__ raises "ValueError: Invalid file descriptor: -1"
+    # from _close_self_pipe() -> _remove_reader() -> _fileobj_to_fd().
+    # This is harmless log noise from a known CPython/asyncio teardown issue
+    # (see gradio-app/gradio#12699), not an app error. Silence exactly that
+    # exception; anything else still prints via the default unraisable hook.
+    exc = unraisable.exc_value
+    if isinstance(exc, ValueError) and "Invalid file descriptor" in str(exc):
+        # Path 1: exception propagated through asyncio's own teardown code.
+        tb = unraisable.exc_traceback
+        while tb is not None:
+            code = tb.tb_frame.f_code
+            if code.co_name == "_fileobj_to_fd" and code.co_filename.replace(
+                "\\", "/"
+            ).endswith("asyncio/base_events.py"):
+                return
+            tb = tb.tb_next
+        # Path 2: CPython attributed the failure to BaseEventLoop.__del__.
+        if getattr(unraisable.object, "__qualname__", "").endswith(
+            "BaseEventLoop.__del__"
+        ):
+            return
+    sys.__unraisablehook__(unraisable)
+
+
+sys.unraisablehook = _quiet_asyncio_teardown_hook
+
+
 import cv2
 import urllib.request
 import urllib.parse
